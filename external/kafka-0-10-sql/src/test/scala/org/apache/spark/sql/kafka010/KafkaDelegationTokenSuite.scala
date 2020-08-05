@@ -56,7 +56,7 @@ class KafkaDelegationTokenSuite extends StreamTest with SharedSparkSession with 
         testUtils.teardown()
         testUtils = null
       }
-      UserGroupInformation.reset()
+//      UserGroupInformation.reset()
     } finally {
       super.afterAll()
     }
