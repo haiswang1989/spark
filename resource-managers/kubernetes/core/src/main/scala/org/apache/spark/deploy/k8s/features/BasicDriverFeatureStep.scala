@@ -18,9 +18,8 @@ package org.apache.spark.deploy.k8s.features
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import io.fabric8.kubernetes.api.model._
-
+import org.apache.commons.lang3.StringUtils
 import org.apache.spark.SparkException
 import org.apache.spark.deploy.k8s._
 import org.apache.spark.deploy.k8s.Config._
@@ -134,7 +133,7 @@ private[spark] class BasicDriverFeatureStep(conf: KubernetesDriverConf)
         .endResources()
       .build()
 
-    val driverPod = new PodBuilder(pod.pod)
+    val driverPodBuilder = new PodBuilder(pod.pod)
       .editOrNewMetadata()
         .withName(driverPodName)
         .addToLabels(conf.labels.asJava)
@@ -143,7 +142,12 @@ private[spark] class BasicDriverFeatureStep(conf: KubernetesDriverConf)
       .editOrNewSpec()
         .withRestartPolicy("Never")
         .addToNodeSelector(conf.nodeSelector.asJava)
-        .addToImagePullSecrets(conf.imagePullSecrets: _*)
+
+    if(StringUtils.isNotEmpty(conf.nodeName)) {
+      driverPodBuilder.withNodeName(conf.nodeName)
+    }
+
+    val driverPod = driverPodBuilder.addToImagePullSecrets(conf.imagePullSecrets: _*)
         .endSpec()
       .build()
 

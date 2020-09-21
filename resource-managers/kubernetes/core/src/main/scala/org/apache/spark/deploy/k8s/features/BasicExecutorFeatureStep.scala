@@ -17,9 +17,8 @@
 package org.apache.spark.deploy.k8s.features
 
 import scala.collection.JavaConverters._
-
 import io.fabric8.kubernetes.api.model._
-
+import org.apache.commons.lang3.StringUtils
 import org.apache.spark.{SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.k8s._
 import org.apache.spark.deploy.k8s.Config._
@@ -195,7 +194,7 @@ private[spark] class BasicExecutorFeatureStep(
         .withUid(pod.getMetadata.getUid)
         .build()
     }
-    val executorPod = new PodBuilder(pod.pod)
+    val executorPodBuilder = new PodBuilder(pod.pod)
       .editOrNewMetadata()
         .withName(name)
         .addToLabels(kubernetesConf.labels.asJava)
@@ -206,8 +205,15 @@ private[spark] class BasicExecutorFeatureStep(
         .withHostname(hostname)
         .withRestartPolicy("Never")
         .addToNodeSelector(kubernetesConf.nodeSelector.asJava)
-        .addToImagePullSecrets(kubernetesConf.imagePullSecrets: _*)
-        .endSpec()
+
+
+    if(StringUtils.isNotEmpty(kubernetesConf.nodeName)) {
+      executorPodBuilder.withNodeName(kubernetesConf.nodeName)
+    }
+
+    val executorPod = executorPodBuilder
+      .addToImagePullSecrets(kubernetesConf.imagePullSecrets: _*)
+      .endSpec()
       .build()
 
     kubernetesConf.get(KUBERNETES_EXECUTOR_SCHEDULER_NAME)

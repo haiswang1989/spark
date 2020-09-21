@@ -378,6 +378,13 @@ private[spark] object Config extends Logging {
 
   val KUBERNETES_NODE_SELECTOR_PREFIX = "spark.kubernetes.node.selector."
 
+  val KUBERNETES_NODE_NAME =
+    ConfigBuilder("spark.kubernetes.node.name")
+      .doc("")
+      .version("3.0.1")
+      .stringConf
+      .createWithDefault(null)
+
   val KUBERNETES_DELETE_EXECUTORS =
     ConfigBuilder("spark.kubernetes.executor.deleteOnTermination")
       .doc("If set to false then executor pods will not be deleted in case " +

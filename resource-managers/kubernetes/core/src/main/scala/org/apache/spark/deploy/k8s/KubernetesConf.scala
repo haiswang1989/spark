@@ -45,6 +45,8 @@ private[spark] abstract class KubernetesConf(val sparkConf: SparkConf) {
 
   def namespace: String = get(KUBERNETES_NAMESPACE)
 
+  def nodeName: String = get(KUBERNETES_NODE_NAME)
+
   def imagePullPolicy: String = get(CONTAINER_IMAGE_PULL_POLICY)
 
   def imagePullSecrets: Seq[LocalObjectReference] = {
