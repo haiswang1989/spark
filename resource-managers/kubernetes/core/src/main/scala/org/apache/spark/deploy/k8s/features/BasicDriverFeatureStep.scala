@@ -142,6 +142,7 @@ private[spark] class BasicDriverFeatureStep(conf: KubernetesDriverConf)
       .editOrNewSpec()
         .withRestartPolicy("Never")
         .addToNodeSelector(conf.nodeSelector.asJava)
+        .withTolerations(conf.tolerations)
 
     if(StringUtils.isNotEmpty(conf.nodeName)) {
       driverPodBuilder.withNodeName(conf.nodeName)

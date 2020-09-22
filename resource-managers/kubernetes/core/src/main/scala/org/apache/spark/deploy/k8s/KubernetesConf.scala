@@ -16,10 +16,11 @@
  */
 package org.apache.spark.deploy.k8s
 
+import java.util
 import java.util.Locale
 
-import io.fabric8.kubernetes.api.model.{LocalObjectReference, LocalObjectReferenceBuilder, Pod}
-
+import com.google.gson.{Gson, JsonElement, JsonParser}
+import io.fabric8.kubernetes.api.model.{LocalObjectReference, LocalObjectReferenceBuilder, Pod, Toleration}
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.k8s.Config._
 import org.apache.spark.deploy.k8s.Constants._
@@ -27,6 +28,8 @@ import org.apache.spark.deploy.k8s.submit._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.ConfigEntry
 import org.apache.spark.util.Utils
+
+import scala.collection.mutable.ListBuffer
 
 /**
  * Structure containing metadata for Kubernetes logic to build Spark pods.
@@ -46,6 +49,23 @@ private[spark] abstract class KubernetesConf(val sparkConf: SparkConf) {
   def namespace: String = get(KUBERNETES_NAMESPACE)
 
   def nodeName: String = get(KUBERNETES_NODE_NAME)
+
+  def tolerations : util.ArrayList[Toleration] = {
+    val tolerationString = get(KUBERNETES_NODE_TOLERATIONS)
+    if(null == tolerationString) {
+      return new util.ArrayList[Toleration]()
+    }
+
+    val gson = new Gson
+    val tolerationsJson = new JsonParser().parse(tolerationString).getAsJsonArray
+    val tolerations = new util.ArrayList[Toleration]()
+
+    for(index <- 0 to tolerationsJson.size() - 1) {
+      tolerations.add(gson.fromJson(tolerationsJson.get(index), classOf[Toleration]))
+    }
+
+    tolerations
+  }
 
   def imagePullPolicy: String = get(CONTAINER_IMAGE_PULL_POLICY)
 
