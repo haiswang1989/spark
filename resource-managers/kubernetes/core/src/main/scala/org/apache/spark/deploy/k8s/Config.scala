@@ -385,6 +385,13 @@ private[spark] object Config extends Logging {
       .stringConf
       .createWithDefault(null)
 
+  val KUBERNETES_NODE_TOLERATIONS =
+    ConfigBuilder("spark.kubernetes.node.tolerations")
+      .doc("")
+      .version("3.0.1")
+      .stringConf
+      .createWithDefault(null)
+
   val KUBERNETES_DELETE_EXECUTORS =
     ConfigBuilder("spark.kubernetes.executor.deleteOnTermination")
       .doc("If set to false then executor pods will not be deleted in case " +

@@ -205,6 +205,7 @@ private[spark] class BasicExecutorFeatureStep(
         .withHostname(hostname)
         .withRestartPolicy("Never")
         .addToNodeSelector(kubernetesConf.nodeSelector.asJava)
+        .withTolerations(kubernetesConf.tolerations)
 
 
     if(StringUtils.isNotEmpty(kubernetesConf.nodeName)) {
