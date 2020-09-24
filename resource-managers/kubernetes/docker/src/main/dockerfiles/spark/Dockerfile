@@ -55,6 +55,7 @@ COPY examples /opt/spark/examples
 COPY ${k8s_tests} /opt/spark/tests
 COPY data /opt/spark/data
 COPY hadoop-deps-centos7/ess-shuffle-manager-1.0.0-shaded.jar /opt/spark/jars/
+COPY hadoop-deps-centos7/hive-hcatalog-server-extensions-2.3.7.jar  /opt/spark/jars/
 
 ENV SPARK_HOME /opt/spark
 
