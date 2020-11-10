@@ -773,26 +773,7 @@ private[client] class Shim_v0_13 extends Shim_v0_12 {
     filters.flatMap(convert).mkString(" and ")
   }
 
-  private def quoteStringLiteral(str: String): String = {
-    if (!str.contains("\"")) {
-      s""""$str""""
-    } else if (!str.contains("'")) {
-      s"""'$str'"""
-    } else {
-      throw new UnsupportedOperationException(
-        """Partition filter cannot have both `"` and `'` characters""")
-    }
-  }
-
-  override def getPartitionsByFilter(
-      hive: Hive,
-      table: Table,
-      predicates: Seq[Expression]): Seq[Partition] = {
-
-    // Hive getPartitionsByFilter() takes a string that represents partition
-    // predicates like "str_key=\"value\" and int_key=1 ..."
-    val filter = convertFilters(table, predicates)
-
+  def getPartitionsByFilterInternal(hive: Hive, table: Table, filter: String): Seq[Partition] = {
     val partitions =
       if (filter.isEmpty) {
         getAllPartitionsMethod.invoke(hive, table).asInstanceOf[JSet[Partition]]
@@ -830,6 +811,28 @@ private[client] class Shim_v0_13 extends Shim_v0_12 {
       }
 
     partitions.asScala.toSeq
+  }
+
+  private def quoteStringLiteral(str: String): String = {
+    if (!str.contains("\"")) {
+      s""""$str""""
+    } else if (!str.contains("'")) {
+      s"""'$str'"""
+    } else {
+      throw new UnsupportedOperationException(
+        """Partition filter cannot have both `"` and `'` characters""")
+    }
+  }
+
+  override def getPartitionsByFilter(
+      hive: Hive,
+      table: Table,
+      predicates: Seq[Expression]): Seq[Partition] = {
+
+    // Hive getPartitionsByFilter() takes a string that represents partition
+    // predicates like "str_key=\"value\" and int_key=1 ..."
+    val filter = convertFilters(table, predicates)
+    getPartitionsByFilterInternal(hive, table, filter)
   }
 
   override def getCommandProcessor(token: String, conf: HiveConf): CommandProcessor =
@@ -1188,6 +1191,12 @@ private[client] class Shim_v2_1 extends Shim_v2_0 {
       classOf[String],
       classOf[JList[Partition]],
       classOf[EnvironmentContext])
+  private lazy val getNumPartitionsByFilterMethod =
+    findMethod(
+      classOf[Hive],
+      "getNumPartitionsByFilter",
+      classOf[Table],
+      classOf[String])
 
   override def loadPartition(
       hive: Hive,
@@ -1232,6 +1241,34 @@ private[client] class Shim_v2_1 extends Shim_v2_0 {
 
   override def alterPartitions(hive: Hive, tableName: String, newParts: JList[Partition]): Unit = {
     alterPartitionsMethod.invoke(hive, tableName, newParts, environmentContextInAlterTable)
+  }
+
+  override def getPartitionsByFilter(
+      hive: Hive,
+      table: Table,
+      predicates: Seq[Expression]): Seq[Partition] = {
+
+    // Hive getPartitionsByFilter() takes a string that represents partition
+    // predicates like "str_key=\"value\" and int_key=1 ..."
+    val filter = convertFilters(table, predicates)
+
+    val limit = SQLConf.get.metastorePartitionLimit
+    if (limit > -1) {
+      val num = try {
+        getNumPartitionsByFilterMethod.invoke(hive, table, filter).asInstanceOf[Int]
+      } catch {
+        case ex: Exception =>
+          logWarning("Caught Hive MetaException attempting to get partition metadata by " +
+            "filter from Hive", ex)
+          0
+      }
+      if (num > limit) {
+        throw new RuntimeException(s"$num partitions of table $table had been queried " +
+          s"by filter '$filter', which already exceeded the limit of $limit")
+      }
+    }
+
+    getPartitionsByFilterInternal(hive, table, filter)
   }
 }
 
