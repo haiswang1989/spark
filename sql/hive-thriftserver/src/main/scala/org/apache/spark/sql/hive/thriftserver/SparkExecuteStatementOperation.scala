@@ -18,8 +18,7 @@
 package org.apache.spark.sql.hive.thriftserver
 
 import java.security.PrivilegedExceptionAction
-import java.sql.{Date, Timestamp}
-import java.util.{Arrays, Map => JMap, UUID}
+import java.util.{Arrays, Map => JMap}
 import java.util.concurrent.{RejectedExecutionException, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -40,11 +39,10 @@ import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row => SparkRow, SQLContext}
 import org.apache.spark.sql.execution.HiveResult
-import org.apache.spark.sql.execution.command.SetCommand
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.CalendarInterval
-import org.apache.spark.util.{Utils => SparkUtils}
+import org.apache.spark.util.{UGICache, Utils => SparkUtils}
 
 private[hive] class SparkExecuteStatementOperation(
     val sqlContext: SQLContext,
@@ -223,14 +221,14 @@ private[hive] class SparkExecuteStatementOperation(
       parentSession.getSessionHandle.getSessionId.toString,
       statement,
       statementId,
-      parentSession.getUsername,
+      parentSession.getUserName,
       operationLog)
     setHasResultSet(true) // avoid no resultset for async run
 
     if (!runInBackground) {
       execute()
     } else {
-      val sparkServiceUGI = UserGroupInformation.getLoginUser
+      val sparkServiceUGI = UGICache.getUGI(parentSession.getUserName)
 
       // Runnable impl to call runInternal asynchronously,
       // from a different thread
@@ -307,7 +305,13 @@ private[hive] class SparkExecuteStatementOperation(
         parentSession.getSessionState.getConf.setClassLoader(executionHiveClassLoader)
       }
 
-      sqlContext.sparkContext.setJobGroup(statementId, statement, false, statementId)
+      sqlContext.sparkContext.setJobGroup(statementId, statement)
+      sqlContext.sparkContext.setLocalProperty(SparkContext.SPARK_JOB_STATEMENT_ID, statementId)
+      if (parentSession.isImpersonation) {
+        sqlContext.sparkContext.setLocalProperty(SparkContext.SPARK_JOB_STATEMENT_USER,
+          parentSession.getUserName)
+      }
+
       result = sqlContext.sql(statement)
       logDebug(result.queryExecution.toString())
       HiveThriftServer2.eventManager.onStatementParsed(statementId,
@@ -359,6 +363,8 @@ private[hive] class SparkExecuteStatementOperation(
           HiveThriftServer2.eventManager.onStatementFinish(statementId)
         }
       }
+      sqlContext.sparkContext.setLocalProperty(SparkContext.SPARK_JOB_STATEMENT_ID, null)
+      sqlContext.sparkContext.setLocalProperty(SparkContext.SPARK_JOB_STATEMENT_USER, null)
       sqlContext.sparkContext.clearJobGroup()
     }
   }
