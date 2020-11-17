@@ -14,11 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-ARG java_image_tag=8-jre-slim
 
-FROM openjdk:${java_image_tag}
+FROM centos:7.6.1810
 
-ARG spark_uid=185
+RUN yum install -y java-1.8.0-openjdk-devel sshpass openssh-clients vim \
+    epel-release supervisor telnet net-tools procps && \
+    yum clean all && rm -rf /var/cache/yum
+
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
+RUN chmod +x /usr/bin/tini
+
+ARG spark_jars=jars
+ARG img_path=kubernetes/dockerfiles
+ARG k8s_tests=kubernetes/tests
 
 # Before building the docker image, first build and make a Spark distribution following
 # the instructions in http://spark.apache.org/docs/latest/building-spark.html.
@@ -28,12 +37,8 @@ ARG spark_uid=185
 # docker build -t spark:latest -f kubernetes/dockerfiles/spark/Dockerfile .
 
 RUN set -ex && \
-    sed -i 's/http:\/\/deb.\(.*\)/https:\/\/deb.\1/g' /etc/apt/sources.list && \
-    apt-get update && \
     ln -s /lib /lib64 && \
-    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 && \
     mkdir -p /opt/spark && \
-    mkdir -p /opt/spark/examples && \
     mkdir -p /opt/spark/work-dir && \
     touch /opt/spark/RELEASE && \
     rm /bin/sh && \
@@ -42,13 +47,15 @@ RUN set -ex && \
     chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
     rm -rf /var/cache/apt/*
 
-COPY jars /opt/spark/jars
+COPY ${spark_jars} /opt/spark/jars
 COPY bin /opt/spark/bin
 COPY sbin /opt/spark/sbin
-COPY kubernetes/dockerfiles/spark/entrypoint.sh /opt/
+COPY ${img_path}/spark/entrypoint.sh /opt/
 COPY examples /opt/spark/examples
-COPY kubernetes/tests /opt/spark/tests
+COPY ${k8s_tests} /opt/spark/tests
 COPY data /opt/spark/data
+COPY hadoop-deps-centos7/ess-shuffle-manager-1.0.0-shaded.jar /opt/spark/jars/
+COPY hadoop-deps-centos7/hive-hcatalog-server-extensions-2.3.7.jar  /opt/spark/jars/
 
 ENV SPARK_HOME /opt/spark
 
@@ -56,6 +63,3 @@ WORKDIR /opt/spark/work-dir
 RUN chmod g+w /opt/spark/work-dir
 
 ENTRYPOINT [ "/opt/entrypoint.sh" ]
-
-# Specify the User that the actual main process will run as
-USER ${spark_uid}

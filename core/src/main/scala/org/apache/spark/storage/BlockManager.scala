@@ -473,7 +473,9 @@ private[spark] class BlockManager(
     }
 
     // Register Executors' configuration with the local shuffle service, if one should exist.
-    if (externalShuffleServiceEnabled && !blockManagerId.isDriver) {
+    val useRemoteShuffleService = conf.get("spark.shuffle.manager")
+      .equals("org.apache.spark.shuffle.ess.EssShuffleManager")
+    if (externalShuffleServiceEnabled && !blockManagerId.isDriver && !useRemoteShuffleService)  {
       registerWithExternalShuffleServer()
     }
 
