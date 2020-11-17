@@ -181,7 +181,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
    * Either move CreateTempViewUsing into catalyst as a parsed logical plan, or remove it because
    * it is deprecated.
    */
-  override def visitCreateTable(ctx: CreateTableContext): LogicalPlan = withOrigin(ctx) {
+  overridfilee def visitCreateTable(ctx: CreateTableContext): LogicalPlan = withOrigin(ctx) {
     val (ident, temp, ifNotExists, external) = visitCreateTableHeader(ctx.createTableHeader)
 
     if (!temp || ctx.query != null) {
@@ -276,6 +276,12 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
           case "file" => AddFileCommand(mayebePaths)
           case "jar" => AddJarCommand(mayebePaths)
           case other => operationNotAllowed(s"ADD with resource type '$other'", ctx)
+        }
+      case SqlBaseParser.DELETE =>
+        ctx.identifier.getText.toLowerCase(Locale.ROOT) match {
+          case "file" => DeleteFileCommand(mayebePaths)
+          case "jar" => DeleteJarCommand(mayebePaths)
+          case other => operationNotAllowed(s"DELETE with resource type '$other'", ctx)
         }
       case SqlBaseParser.LIST =>
         ctx.identifier.getText.toLowerCase(Locale.ROOT) match {

@@ -42,6 +42,19 @@ case class AddJarCommand(path: String) extends RunnableCommand {
   }
 }
 
+case class DeleteJarCommand(path: String) extends RunnableCommand {
+  override val output: Seq[Attribute] = {
+    val schema = StructType(
+      StructField("result", IntegerType, nullable = false) :: Nil)
+    schema.toAttributes
+  }
+
+  override def run(sparkSession: SparkSession): Seq[Row] = {
+    sparkSession.sessionState.resourceLoader.deleteJar(path)
+    Seq.empty[Row]
+  }
+}
+
 /**
  * Adds a file to the current session so it can be used.
  */
@@ -52,6 +65,14 @@ case class AddFileCommand(path: String) extends RunnableCommand {
     Seq.empty[Row]
   }
 }
+
+case class DeleteFileCommand(path: String) extends RunnableCommand {
+  override def run(sparkSession: SparkSession): Seq[Row] = {
+    sparkSession.sparkContext.deleteFile(path)
+    Seq.empty[Row]
+  }
+}
+
 
 /**
  * Returns a list of file paths that are added to resources.

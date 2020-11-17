@@ -1568,6 +1568,25 @@ class SparkContext(config: SparkConf) extends Logging {
     }
   }
 
+  def deleteFile(path: String): Unit = {
+    val uri = new URI(path)
+    val schemeCorrectedPath = uri.getScheme match {
+      case null | "local" => new File(path).getCanonicalFile.toURI.toString
+      case _ => path
+    }
+    val scheme = new URI(schemeCorrectedPath).getScheme
+    val fileName = new File(uri.getPath)
+    val key = if (!isLocal && scheme == "file") {
+      env.rpcEnv.fileServer.deleteFile(fileName.getName())
+    } else {
+      schemeCorrectedPath
+    }
+    addedFiles.asJava.remove(key)
+    val timestamp = System.currentTimeMillis
+    logInfo("Deleted file " + path + " at " + key + " with timestamp " + timestamp)
+    postEnvironmentUpdate()
+  }
+
   /**
    * :: DeveloperApi ::
    * Register a listener to receive up-calls from events that happen during execution.
@@ -1899,6 +1918,48 @@ class SparkContext(config: SparkConf) extends Logging {
           logWarning(s"The jar $path has been added already. Overwriting of added jars " +
             "is not supported in the current version.")
         }
+      }
+    }
+  }
+
+  def deleteJar(path: String): Unit = {
+    def deleteLocalJarFile(file: File): String = {
+      try {
+        env.rpcEnv.fileServer.deleteJar(path)
+      } catch {
+        case NonFatal(e) =>
+          logError(s"Failed to delete $path to Spark environment", e)
+          null
+      }
+    }
+
+    if (path == null || path.isEmpty) {
+      logWarning("null or empty path specified as parameter to addJar")
+    } else {
+      val key = if (path.contains("\\")) {
+        // For local paths with backslashes on Windows, URI throws an exception
+        deleteLocalJarFile(new File(path))
+      } else {
+        val uri = new Path(path).toUri
+        // SPARK-17650: Make sure this is a valid URL before adding it to the list of dependencies
+        Utils.validateURL(uri)
+        uri.getScheme match {
+          // A JAR file which exists only on the driver node
+          case null =>
+            // SPARK-22585 path without schema is not url encoded
+            deleteLocalJarFile(new File(uri.getPath))
+          // A JAR file which exists only on the driver node
+          case "file" => deleteLocalJarFile(new File(uri.getPath))
+          // A JAR file which exists locally on every worker node
+          case "local" => "file:" + uri.getPath
+          case _ => path
+        }
+      }
+      if (key != null) {
+        val timestamp = System.currentTimeMillis
+        addedJars.asJava.remove(key)
+        logInfo(s"Deleted JAR $path at $key with timestamp $timestamp")
+        postEnvironmentUpdate()
       }
     }
   }

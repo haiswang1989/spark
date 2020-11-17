@@ -18,10 +18,10 @@
 package org.apache.spark.sql.internal
 
 import java.io.File
+import java.net.URLClassLoader
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-
 import org.apache.spark.annotation.Unstable
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
@@ -34,6 +34,7 @@ import org.apache.spark.sql.connector.catalog.CatalogManager
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.streaming.StreamingQueryManager
 import org.apache.spark.sql.util.{ExecutionListenerManager, QueryExecutionListener}
+import org.apache.spark.util.Utils
 
 /**
  * A class that holds all session-specific state in a given [[SparkSession]].
@@ -176,5 +177,21 @@ class SessionResourceLoader(session: SparkSession) extends FunctionResourceLoade
     }
     session.sharedState.jarClassLoader.addURL(jarURL)
     Thread.currentThread().setContextClassLoader(session.sharedState.jarClassLoader)
+  }
+
+  def deleteJar(path: String): Unit = {
+    session.sparkContext.deleteJar(path)
+    // 卸载jar的时候, classloader可以不用管
+    // sql执行完成以后session会关闭, 对应的classloader会被回收
+    /*
+    val uri = new Path(path).toUri
+    val jarURL = if (uri.getScheme == null) {
+      // `path` is a local file path without a URL scheme
+      new File(path).toURI.toURL
+    } else {
+      // `path` is a URL with a scheme
+      uri.toURL
+    }
+    */
   }
 }
