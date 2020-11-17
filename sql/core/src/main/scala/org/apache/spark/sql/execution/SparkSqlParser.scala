@@ -181,7 +181,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
    * Either move CreateTempViewUsing into catalyst as a parsed logical plan, or remove it because
    * it is deprecated.
    */
-  overridfilee def visitCreateTable(ctx: CreateTableContext): LogicalPlan = withOrigin(ctx) {
+  override def visitCreateTable(ctx: CreateTableContext): LogicalPlan = withOrigin(ctx) {
     val (ident, temp, ifNotExists, external) = visitCreateTableHeader(ctx.createTableHeader)
 
     if (!temp || ctx.query != null) {
