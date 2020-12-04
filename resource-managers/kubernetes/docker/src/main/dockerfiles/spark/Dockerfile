@@ -56,8 +56,10 @@ COPY ${k8s_tests} /opt/spark/tests
 COPY data /opt/spark/data
 COPY hadoop-deps-centos7/ess-shuffle-manager-1.0.0-shaded.jar /opt/spark/jars/
 COPY hadoop-deps-centos7/hive-hcatalog-server-extensions-2.3.7.jar  /opt/spark/jars/
+COPY hadoop-conf /opt/spark/hadoop-conf
 
 ENV SPARK_HOME /opt/spark
+ENV HADOOP_CONF_DIR /opt/spark/hadoop-conf
 
 WORKDIR /opt/spark/work-dir
 RUN chmod g+w /opt/spark/work-dir

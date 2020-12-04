@@ -93,6 +93,8 @@ function create_dev_build_context {(
   cp -r "resource-managers/kubernetes/docker/src/main/dockerfiles" \
     "$BASE_CTX/kubernetes/dockerfiles"
 
+  cp -r "hadoop-deps-centos7" "$BASE_CTX/hadoop-deps-centos7"
+  cp -r "../hadoop-conf" "$BASE_CTX/hadoop-conf"
   cp -r "assembly/target/scala-$SPARK_SCALA_VERSION/jars" "$BASE_CTX/jars"
   cp -r "resource-managers/kubernetes/integration-tests/tests" \
     "$BASE_CTX/kubernetes/tests"
