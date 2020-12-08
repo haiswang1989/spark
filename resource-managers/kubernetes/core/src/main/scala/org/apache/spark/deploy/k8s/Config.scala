@@ -219,6 +219,13 @@ private[spark] object Config extends Logging {
       .checkValue(value => value > 0, "Allocation batch delay must be a positive time value.")
       .createWithDefaultString("1s")
 
+  val KUBERNETES_ALLOCATION_EXECUTOR_TIMEOUT =
+    ConfigBuilder("spark.kubernetes.allocation.executor.timeout")
+      .doc("timeout to be used in milliseconds for allocate executor.")
+      .version("3.0.1")
+      .intConf
+      .createWithDefault(60000)
+
   val KUBERNETES_EXECUTOR_LOST_REASON_CHECK_MAX_ATTEMPTS =
     ConfigBuilder("spark.kubernetes.executor.lostCheck.maxAttempts")
       .doc("Maximum number of attempts allowed for checking the reason of an executor loss " +
