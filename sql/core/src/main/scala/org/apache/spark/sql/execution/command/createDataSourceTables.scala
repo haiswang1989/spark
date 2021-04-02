@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.command
 
 import java.net.URI
 
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -219,8 +220,35 @@ case class CreateDataSourceTableAsSelectCommand(
       dataSource.writeAndRead(mode, query, outputColumnNames, physicalPlan)
     } catch {
       case ex: AnalysisException =>
+        deletePathWhenSaveDataFailed(tableLocation.get, session)
         logError(s"Failed to write to table ${table.identifier.unquotedString}", ex)
         throw ex
+      case e: Exception =>
+        deletePathWhenSaveDataFailed(tableLocation.get, session)
+        throw e
+    }
+  }
+
+  private def deletePathWhenSaveDataFailed(tablePathUri : URI, session: SparkSession): Unit = {
+    logInfo(s"wanghaisheng - deletePathWhenSaveDataFailed - " +
+      s"tablePath : ${tablePathUri.toString}")
+    if (tablePathUri.toString.contains("test.db")) {
+      val tablePath = new Path(tablePathUri)
+      val fileSystem = tablePath.getFileSystem(session.sessionState.newHadoopConf())
+      val maxTryCnt = 5
+      var tryCnt = 1
+      while (tryCnt <= maxTryCnt && fileSystem.exists(tablePath)) {
+        fileSystem.delete(tablePath, true)
+        tryCnt += 1
+        Thread.sleep(2000L)
+      }
+
+      if(fileSystem.exists(tablePath)) {
+        logError(s"wanghaisheng - deletePathWhenSaveDataFailed - " +
+          s"delete path failed : ${tablePathUri.toString}.")
+      }
+    } else {
+      logInfo(s"wanghaisheng - deletePathWhenSaveDataFailed - not test db, do not delete path.")
     }
   }
 }
